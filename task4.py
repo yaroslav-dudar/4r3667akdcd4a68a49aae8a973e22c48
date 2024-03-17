@@ -7,7 +7,7 @@ string_formats_variable = "STRING_EXAMPLES_WITH_FORMAT"
 input_file_name = "./task3.py"
 
 
-def parse_node(node):
+def parse_node(node: ast.AST):
     """
     Recursively iterate over variable node and update strings
     """
