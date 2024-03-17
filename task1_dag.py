@@ -1,10 +1,11 @@
+from datetime import timedelta
+
 import airflow
 from airflow import DAG
 from airflow.contrib.operators.bigquery_operator import (
-    BigQueryOperator,
     BigQueryCreateEmptyTableOperator,
+    BigQueryOperator,
 )
-from datetime import timedelta
 
 default_args = {
     "start_date": airflow.utils.dates.days_ago(0),
