@@ -1,0 +1,372 @@
+{
+    "openapi": "3.0.1",
+    "info": {
+        "title": "cBioPortal web Public API [Alpha]",
+        "description": "A web service for supplying JSON formatted data to cBioPortal clients. Please note that this API is currently in beta and subject to change.",
+        "contact": {
+            "name": "cbioportal",
+            "url": "https://www.cbioportal.org",
+            "email": "cbioportal@googlegroups.com"
+        },
+        "license": {
+            "name": "License",
+            "url": "https://github.com/cBioPortal/cbioportal/blob/master/LICENSE"
+        },
+        "version": "1.0 (beta). Backwards compatibility will be maintained (after 1.0 release)"
+    },
+    "externalDocs": {
+        "description": "SpringShop Wiki Documentation",
+        "url": "https://springshop.wiki.github.org/docs"
+    },
+    "servers": [
+        {
+            "url": "https://www.cbioportal.org",
+            "description": "Generated server url"
+        }
+    ],
+    "paths": {
+        "/api/structuralvariant-genes/fetch": {
+            "post": {
+                "tags": [
+                    "Study View"
+                ],
+                "description": "Fetch structural variant genes by study view filter",
+                "operationId": "fetchStructuralVariantGenesUsingPOST",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StudyViewFilter"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/AlterationCountByGene"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/structuralvariant-counts/fetch": {
+            "post": {
+                "tags": [
+                    "Study View"
+                ],
+                "description": "Fetch structural variant genes by study view filter",
+                "operationId": "fetchStructuralVariantCountsUsingPOST",
+                "parameters": [
+                    {
+                        "name": "structuralvariant",
+                        "in": "query",
+                        "description": "Level of detail of the response",
+                        "required": false,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StudyViewFilter"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/AlterationCountByStructuralVariant"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/structural-variant/fetch": {
+            "post": {
+                "tags": [
+                    "Structural Variants"
+                ],
+                "description": "Fetch structural variants for entrezGeneIds and molecularProfileIds or sampleMolecularIdentifiers",
+                "operationId": "fetchStructuralVariantsUsingPOST",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StructuralVariantFilter"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/StructuralVariant"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sample-lists-counts/fetch": {
+            "post": {
+                "tags": [
+                    "Study View"
+                ],
+                "description": "Fetch case list sample counts by study view filter",
+                "operationId": "fetchCaseListCountsUsingPOST",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StudyViewFilter"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/CaseListDataCount"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/resource-definitions/fetch": {
+            "post": {
+                "tags": [
+                    "Resource Definitions"
+                ],
+                "description": "Get all resource definitions for specified studies",
+                "operationId": "fetchResourceDefinitionsUsingPOST",
+                "parameters": [
+                    {
+                        "name": "projection",
+                        "in": "query",
+                        "description": "Level of detail of the response",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "SUMMARY",
+                            "enum": [
+                                "ID",
+                                "SUMMARY",
+                                "DETAILED",
+                                "META"
+                            ]
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "maxItems": 10000000,
+                                "minItems": 1,
+                                "type": "array",
+                                "description": "List of Study IDs",
+                                "items": {
+                                    "maxLength": 10000000,
+                                    "minLength": 1,
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ResourceDefinition"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/reference-genome-genes/{genomeName}/{genomeId}/fetch": {
+            "parameters": [
+                {
+                    "in": "path",
+                    "name": "genomeId",
+                    "schema": {
+                        "type": "integer"
+                    },
+                    "required": true
+                }
+            ],
+            "post": {
+                "tags": [
+                    "Reference Genome Genes"
+                ],
+                "description": "Fetch genes of reference genome of interest",
+                "operationId": "fetchReferenceGenomeGenesUsingPOST",
+                "parameters": [
+                    {
+                        "name": "genomeName",
+                        "in": "path",
+                        "description": "Name of Reference Genome hg19",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "list": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "descripiton": {
+                                                "type": "string"
+                                            },
+                                            "enabled": {
+                                                "type": "boolean"
+                                            }
+                                        }
+                                    }
+                                },
+                                "datetime": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                },
+                                "ids": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "integer",
+                                        "maximum": -100
+                                    }
+                                },
+                                "color": {
+                                    "type": "object",
+                                    "properties": {
+                                        "name": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "maxItems": 100000,
+                                "minItems": 1,
+                                "type": "array",
+                                "description": "List of Gene IDs",
+                                "items": {
+                                    "maxLength": 100000,
+                                    "minLength": 1,
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ReferenceGenomeGene"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mutation-data-counts/fetch": {
+            "post": {
+                "tags": [
+                    "Study View"
+                ],
+                "description": "Fetch mutation data counts by GenomicDataCountFilter",
+                "operationId": "fetchMutationDataCountsUsingPOST",
+                "parameters": [
+                    {
+                        "name": "projection",
+                        "in": "query",
+                        "description": "Level of detail of the response",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {}
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GenomicDataCountFilter"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResponseEntityListGenomicDataCountItem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
