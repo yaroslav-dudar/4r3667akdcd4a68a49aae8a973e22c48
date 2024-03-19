@@ -41,10 +41,9 @@ def parse_single_log_file(file_content: bytes) -> List[NginxLog]:
         raw_log = json.loads(row)["textPayload"]
         try:
             parsed_log = parse_nginx_log(raw_log)
+            access_logs.append(parsed_log)
         except ValueError:
             logger.warning(f"Can't process log: {raw_log}")
-
-        access_logs.append(parsed_log)
 
     return access_logs
 

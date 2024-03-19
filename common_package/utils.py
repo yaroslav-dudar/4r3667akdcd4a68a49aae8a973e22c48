@@ -27,12 +27,12 @@ class NginxLog:
         object.__setattr__(self, "time_local", self._time_local_to_timestamp())
         # escape `'` character to be able to push data to database
         object.__setattr__(
-            self, "http_user_agent", self.http_user_agent.replace("'", "\'")
+            self, "http_user_agent", self.http_user_agent.replace("'", r"\'")
         )
-        object.__setattr__(self, "http_method", self.http_method.replace("'", "\'"))
-        object.__setattr__(self, "request_url", self.request_url.replace("'", "\'"))
+        object.__setattr__(self, "http_method", self.http_method.replace("'", r"\'"))
+        object.__setattr__(self, "request_url", self.request_url.replace("'", r"\'"))
         object.__setattr__(
-            self, "http_protocol", self.http_protocol.replace("'", "\'")
+            self, "http_protocol", self.http_protocol.replace("'", r"\'")
         )
 
     def _time_local_to_timestamp(self) -> int:

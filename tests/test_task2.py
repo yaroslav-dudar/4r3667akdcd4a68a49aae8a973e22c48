@@ -58,7 +58,7 @@ class ParserTest(unittest.TestCase):
             assert parsed_log.http_method == http_method
             assert parsed_log.body_bytes_sent == body_bytes_sent
             assert parsed_log.gzip_ratio == "-"
-            assert parsed_log.http_user_agent == self.user_agent
+            assert parsed_log.http_user_agent.replace(r"\'", "'") == self.user_agent
             assert parsed_log.request_url == "/favicon.ico"
 
     def test_failed(self):
@@ -67,7 +67,7 @@ class ParserTest(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             incorect_time_local = (
-                f'10.132.0.3 - - [4554675 "GET /favicon.ico HTTP/1.1" '
+                '10.132.0.3 - - [4554675 "GET /favicon.ico HTTP/1.1" '
                 '404 153 "-" "\'Mozilla/5.0 (compatible; GenomeCrawlerd/1.0; '
                 '+https://www.nokia.com/networks/ip-networks/deepfield/genome/)\'" "-"'
             )
