@@ -1,15 +1,19 @@
+import json
+import logging
 from datetime import timedelta
+from typing import List
 
 import airflow
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCreateEmptyTableOperator,
-    BigQueryInsertJobOperator,
-)
+    BigQueryCreateEmptyTableOperator, BigQueryInsertJobOperator)
 from airflow.providers.google.cloud.operators.gcs import GCSListObjectsOperator
 
-from common_package.utils import parse_file_name
+from common_package.utils import NginxLog, parse_nginx_log
+
+logger = logging.getLogger("airflow.task")
 
 default_args = {
     "start_date": airflow.utils.dates.days_ago(0),
@@ -21,7 +25,28 @@ bucket_name = "nginx945235-bucket"
 list_files_task_id = "list_log_files"
 
 bq_dataset_id = "test"
-bq_table = "log_files"
+bq_table = "nginx_access_logs"
+
+
+def parse_single_log_file(file_content: bytes) -> List[NginxLog]:
+    """
+    Parse raw nginx logs and return list of NginxLog objects
+    """
+    access_logs: List[NginxLog] = []
+
+    for row in file_content.decode("utf8").split("\n"):
+        if not row:
+            continue
+
+        raw_log = json.loads(row)["textPayload"]
+        try:
+            parsed_log = parse_nginx_log(raw_log)
+        except ValueError:
+            logger.warning(f"Can't process log: {raw_log}")
+
+        access_logs.append(parsed_log)
+
+    return access_logs
 
 
 def parse_files(**context):
@@ -31,15 +56,26 @@ def parse_files(**context):
     Push SQL subquery to xcom so downstream task can execute it
     """
     log_files = context["ti"].xcom_pull(task_ids=list_files_task_id, key="return_value")
-    rows = []
-    for file_name in log_files:
-        from_timestamp, to_timestamp = parse_file_name(file_name)
-        rows.append((file_name, from_timestamp, to_timestamp))
+    hook = GCSHook()
+    access_logs: List[NginxLog] = []
 
+    for file_name in log_files:
+        # read file content to memory
+        file_content = hook.download(
+            bucket_name=bucket_name,
+            object_name=file_name,
+        )
+        access_logs.extend(parse_single_log_file(file_content))
+
+    # prepare input for sql query
     return_value = ",".join(
         [
-            f"('{name}', TIMESTAMP_SECONDS({from_timestamp}), TIMESTAMP_SECONDS({to_timestamp}))"
-            for name, from_timestamp, to_timestamp in rows
+            (
+                f"('{log.remote_addr}', '{log.remote_user}', TIMESTAMP_SECONDS({log.time_local}), "
+                f"'{log.http_method}', '{log.request_url}', '{log.http_protocol}', {log.status}, "
+                f"{log.body_bytes_sent}, '{log.http_referer}', '{log.http_user_agent}', '{log.gzip_ratio}')"
+            )
+            for log in access_logs
         ]
     )
     context["ti"].xcom_push(key="return_value", value=return_value)
@@ -59,6 +95,8 @@ dag = DAG(
 list_files = GCSListObjectsOperator(
     task_id=list_files_task_id,
     bucket=bucket_name,
+    # filter out error log files
+    match_glob="stdout/**",
     dag=dag,
 )
 
@@ -73,7 +111,7 @@ insert_query_job = BigQueryInsertJobOperator(
     configuration={
         "query": {
             "query": """
-                INSERT INTO test.log_files (file_name, from_timestamp, to_timestamp)
+                INSERT INTO test.nginx_access_logs
                 VALUES {{ ti.xcom_pull(task_ids='parser', key='return_value') }}
             """,
             "useLegacySql": False,
@@ -88,9 +126,17 @@ destination_table_create = BigQueryCreateEmptyTableOperator(
     dataset_id=bq_dataset_id,
     table_id=bq_table,
     schema_fields=[
-        {"name": "file_name", "type": "STRING", "mode": "NULLABLE"},
-        {"name": "from_timestamp", "type": "TIMESTAMP", "mode": "NULLABLE"},
-        {"name": "to_timestamp", "type": "TIMESTAMP", "mode": "NULLABLE"},
+        {"name": "remote_addr", "type": "STRING", "mode": "NULLABLE"},
+        {"name": "remote_user", "type": "STRING", "mode": "NULLABLE"},
+        {"name": "time_local", "type": "TIMESTAMP", "mode": "NULLABLE"},
+        {"name": "http_method", "type": "STRING", "mode": "NULLABLE"},
+        {"name": "request_url", "type": "STRING", "mode": "NULLABLE"},
+        {"name": "http_protocol", "type": "STRING", "mode": "NULLABLE"},
+        {"name": "status", "type": "INTEGER", "mode": "NULLABLE"},
+        {"name": "body_bytes_sent", "type": "INTEGER", "mode": "NULLABLE"},
+        {"name": "http_referer", "type": "STRING", "mode": "NULLABLE"},
+        {"name": "http_user_agent", "type": "STRING", "mode": "NULLABLE"},
+        {"name": "gzip_ratio", "type": "STRING", "mode": "NULLABLE"},
     ],
     if_exists="ignore",
     dag=dag,

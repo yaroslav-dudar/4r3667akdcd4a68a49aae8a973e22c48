@@ -1,55 +1,65 @@
 import re
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Tuple
-
-YYYY_MM_DD_FORMAT = "%Y/%m/%d"
-HH_MM_SS_FORMAT = "%H:%M:%S"
 
 
-def get_timestamp(
-    year: str, month: str, day: str, hours: str, minutes: str, seconds: str
-) -> int:
+TIME_LOCAL_FORMAT = "%d/%b/%Y:%H:%M:%S %z"
+
+
+@dataclass(frozen=True)
+class NginxLog:
+    remote_addr: str
+    remote_user: str
+    time_local: int  # unix timestamp
+    http_method: str
+    request_url: str
+    http_protocol: str
+    status: int
+    body_bytes_sent: int
+    http_referer: str
+    http_user_agent: str
+    gzip_ratio: str
+
+    def __post_init__(self):
+        # frozen=True: require object.__setattr__()
+        object.__setattr__(self, "status", int(self.status))
+        object.__setattr__(self, "body_bytes_sent", int(self.body_bytes_sent))
+        object.__setattr__(self, "time_local", self._time_local_to_timestamp())
+        # escape `'` character to be able to push data to database
+        object.__setattr__(
+            self, "http_user_agent", self.http_user_agent.replace("'", "\'")
+        )
+        object.__setattr__(self, "http_method", self.http_method.replace("'", "\'"))
+        object.__setattr__(self, "request_url", self.request_url.replace("'", "\'"))
+        object.__setattr__(
+            self, "http_protocol", self.http_protocol.replace("'", "\'")
+        )
+
+    def _time_local_to_timestamp(self) -> int:
+        timestamp = datetime.strptime(self.time_local, TIME_LOCAL_FORMAT)
+        return int(datetime.timestamp(timestamp))
+
+
+def parse_nginx_log(log: str) -> NginxLog:
     """
-    Return unix timestamp from {year,month,day hour,minutes,seconds}
+    Parse nginx access log in such format
+        '$remote_addr - $remote_user [$time_local] '
+        '"$request" $status $body_bytes_sent '
+        '"$http_referer" "$http_user_agent" "$gzip_ratio"';
     """
-    date = datetime.strptime(
-        f"{year}/{month}/{day} {hours}:{minutes}:{seconds}",
-        f"{YYYY_MM_DD_FORMAT} {HH_MM_SS_FORMAT}",
+    pattern = (
+        r"^(?P<remote_addr>[^\s]*) - (?P<remote_user>[^\s]*)\s{0,1}- \[(?P<time_local>[^\]]*)\] "
+        r'"(?P<http_method>[^\s]*) (?P<request_url>[^\s]*) (?P<http_protocol>[^\s]*)" '
+        r'(?P<status>[^\s]*) (?P<body_bytes_sent>[^\s]*) "(?P<http_referer>[^"]*)" '
+        r'"(?P<http_user_agent>[^"]*)" "(?P<gzip_ratio>[^"]*)"$'
     )
-    return int(datetime.timestamp(date))
+    match = re.match(pattern, log)
 
-
-def parse_file_name(file_name: str) -> Tuple[int, int]:
-    """
-    Input nginx log file name and return from_timestamp, to_timestamp pair
-    """
-    match = re.match(
-        (
-            r".*/(?P<year>[0-9]{4})/(?P<month>[0-9]{2})/(?P<day>[0-9]{2})/"
-            r"(?P<hour_from>[0-9]{2}):(?P<min_from>[0-9]{2}):(?P<sec_from>[0-9]{2})_"
-            r"(?P<hour_to>[0-9]{2}):(?P<min_to>[0-9]{2}):(?P<sec_to>[0-9]{2})_.*"
-        ),
-        file_name,
-    )
     if not match:
-        raise ValueError("Incorrect filename pattern")
+        # "$request" may contain data that imposible to parse
+        # when client try to connect via Https to Http server
+        # example: "\x16\x03\x01\x00\xCA\x01\x00\x00\xC6\x03\x03\xD6\xB6c\xF6,G\x878\x17`\xFE" 400 157 "-" "-" "-"
+        raise ValueError("Invalid nginx access log")
 
     groups = match.groupdict()
-
-    from_timestamp = get_timestamp(
-        groups["year"],
-        groups["month"],
-        groups["day"],
-        groups["hour_from"],
-        groups["min_from"],
-        groups["sec_from"],
-    )
-    to_timestamp = get_timestamp(
-        groups["year"],
-        groups["month"],
-        groups["day"],
-        groups["hour_to"],
-        groups["min_to"],
-        groups["sec_to"],
-    )
-    return from_timestamp, to_timestamp
+    return NginxLog(**groups)
